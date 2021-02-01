@@ -3,40 +3,15 @@
 #include <unistd.h>
 
 struct Option{
-       int showHidden; 
-       int a;
+       int h; 
 };
-
-struct Option parse_cmd(int argc, char* argv[]){
-    int opt;
-    const char *optString="ah";
-
-    struct Option option;
-    while ((opt = getopt(argc, argv, optString)) != -1){
-        printf("opt is: %d\n", opt);
-        switch (opt){
-
-            case 'h':
-                option.showHidden = 1;
-                break;
-            case '?':
-                printf("unknow option: %c\n", optopt);
-                break;
-        }
-    }
-    for(; optind < argc; optind++){ //when some extra arguments are passed
-    //   printf("Given extra arguments: %s\n", argv[optind]);
-    }
-
-    return option;
-}
 
 int list(char* dir_name, struct Option option){
     DIR *dp;
     struct direct *dir;
 
     if ((dp = opendir(dir_name)) == NULL){
-        fprintf(stderr, "Cannot access %s.\n", dir_name);
+        fprintf(stderr, "Cannot access %s\n", dir_name);
         return 1;
     }
     printf("%s\n", dir_name);
@@ -46,9 +21,11 @@ int list(char* dir_name, struct Option option){
         if (dir->d_ino == 0)
             continue;
 
-        if (option.showHidden == 0 && dir->d_name[0] == '.')
+        // Skip all hidden files when -h flag is not specified
+        if (option.h == 0 && dir->d_name[0] == '.')
             continue;
 
+        // Print the file's name
         printf("%s\t ", dir->d_name);
     }
     printf("\n");
@@ -57,20 +34,37 @@ int list(char* dir_name, struct Option option){
 }
 
 void myls(int argc, char*argv[]){
+    struct Option option = {0}; // init option flag object
 
-    struct Option option = parse_cmd(argc, argv);
+    int opt;
+    const char *optString="h"; // only take '-h' as option arg 
+    while ((opt = getopt(argc, argv, optString)) != -1){
+        
+        switch (opt){
 
-    while(argc){
-        --argc;
-        printf("argc is: %d \n",argc);
-        printf("argv is: %s \n",*argv);
-        if (*argv[0] != '-'){
-            list(*argv, option);
+            // turn on option h to show all hidden files
+            case 'h':
+                option.h = 1;
+                break;
+            
+            // Exit if option arg is illegal
+            case '?':
+                return;
         }
-        argv++;
     }
+    // When no directory is specified, list all files in current dir
+    if(optind == argc){
+        list(".", option);
+        return;
+    }
+
+    // Else list all files in specified directories
+    for(; optind < argc; optind++){ 
+        list(argv[optind], option);
+    }
+
 }
-// myls -h p4 
+
 int main(int argc, char *argv[]){
    
     myls(argc, argv);
